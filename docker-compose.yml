@@ -1,0 +1,110 @@
+version: "3.9"
+
+services:
+  # ─── PostgreSQL Database ─────────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    container_name: csrd_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: csrd_db
+      POSTGRES_USER: csrd_user
+      POSTGRES_PASSWORD: csrd_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U csrd_user -d csrd_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis (caching / Celery broker) ────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: csrd_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend API ──────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: infra/docker/backend.Dockerfile
+    container_name: csrd_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://csrd_user:csrd_password@db:5432/csrd_db
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-use-strong-random-key}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      CORS_ORIGINS: '["http://localhost:3000","http://localhost:80","http://frontend"]'
+      DEBUG: "false"
+    volumes:
+      - reports_data:/tmp/csrd_reports
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─── Frontend ────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/docker/frontend.Dockerfile
+    container_name: csrd_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  # ─── Celery Worker (background tasks) ───────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/backend.Dockerfile
+    container_name: csrd_worker
+    restart: unless-stopped
+    command: celery -A celery_app worker --loglevel=info --concurrency=2
+    environment:
+      DATABASE_URL: postgresql://csrd_user:csrd_password@db:5432/csrd_db
+      REDIS_URL: redis://redis:6379/0
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - reports_data:/tmp/csrd_reports
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles:
+      - full
+
+volumes:
+  postgres_data:
+  reports_data:
+
+networks:
+  default:
+    name: csrd_network
