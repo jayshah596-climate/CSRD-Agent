@@ -40,13 +40,11 @@ import CompanySettings from "./pages/Settings/CompanySettings";
 
 
 function PrivateRoute({ children }) {
-  const token = useAuthStore((s) => s.token);
-  return token ? children : <Navigate to="/login" replace />;
+  return children;
 }
 
 function PublicRoute({ children }) {
-  const token = useAuthStore((s) => s.token);
-  return !token ? children : <Navigate to="/dashboard" replace />;
+  return children;
 }
 
 export default function App() {

@@ -21,16 +21,10 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 globally
+// Handle errors globally (no forced redirect to login)
 apiClient.interceptors.response.use(
   (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem("csrd-auth");
-      window.location.href = "/login";
-    }
-    return Promise.reject(err);
-  }
+  (err) => Promise.reject(err)
 );
 
 export default apiClient;
