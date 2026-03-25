@@ -5,7 +5,6 @@ End-to-end CSRD/ESRS SaaS Platform
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 import time
 import logging
@@ -23,9 +22,6 @@ from routes import auth, projects, emissions, materiality, iro, scenario, report
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("csrd-agent")
 
-# ─── Create tables ──────────────────────────────────────────────────────────
-Base.metadata.create_all(bind=engine)
-
 # ─── App ────────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="CSRD-Agent API",
@@ -40,11 +36,20 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 
+# ─── Create tables on startup ───────────────────────────────────────────────
+@app.on_event("startup")
+def create_tables():
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created/verified")
+    except Exception as e:
+        logger.error(f"Database init failed: {e}")
+
 # ─── Middleware ──────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
