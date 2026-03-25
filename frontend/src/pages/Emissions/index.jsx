@@ -39,7 +39,7 @@ export default function EmissionsPage() {
     queryFn: () => emissionsAPI.summary(projectId).then((r) => r.data),
   });
 
-  const { data: factors = [] } = useQuery({
+  const { data: _factors = [] } = useQuery({
     queryKey: ["emission-factors", projectId],
     queryFn: () => emissionsAPI.factors(projectId).then((r) => r.data),
   });

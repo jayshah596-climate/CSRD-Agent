@@ -69,7 +69,7 @@ export default function DataCollection() {
     queryFn: () => dataAPI.list(projectId, selectedStandard).then((r) => r.data),
   });
 
-  const { data: validation } = useQuery({
+  const { data: _validation } = useQuery({
     queryKey: ["data-validate", projectId],
     queryFn: () => dataAPI.validate?.(projectId)?.then((r) => r.data) ?? null,
     enabled: false,

@@ -18,7 +18,7 @@ const FORMAT_CONFIG = {
 export default function ReportsPage() {
   const { projectId } = useParams();
   const qc = useQueryClient();
-  const [generating, setGenerating] = useState(false);
+  const [_generating, _setGenerating] = useState(false);
   const [pollingId, setPollingId] = useState(null);
 
   const { data: reports = [], isLoading, refetch } = useQuery({
