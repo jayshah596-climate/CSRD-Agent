@@ -38,6 +38,9 @@ import ReportsPage from "./pages/Reports";
 // Company Settings
 import CompanySettings from "./pages/Settings/CompanySettings";
 
+// CSRD Agent
+import AgentPage from "./pages/Agent";
+
 
 function PrivateRoute({ children }) {
   return children;
@@ -78,6 +81,7 @@ export default function App() {
           <Route path="projects/:projectId/scenarios" element={<ScenariosPage />} />
           <Route path="projects/:projectId/reports" element={<ReportsPage />} />
           <Route path="settings/company" element={<CompanySettings />} />
+          <Route path="agent" element={<AgentPage />} />
         </Route>
 
         {/* Catch all */}

@@ -100,3 +100,13 @@ export const dataAPI = {
   create: (projectId, data) => apiClient.post(`/projects/${projectId}/data`, data),
   esrsStructure: (projectId) => apiClient.get(`/projects/${projectId}/data/esrs-structure`),
 };
+
+export const agentAPI = {
+  // Returns a raw fetch Response for streaming (SSE)
+  analyzeStream: (payload) =>
+    fetch(`${API_BASE}/agent/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+};

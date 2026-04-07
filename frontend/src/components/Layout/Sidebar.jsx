@@ -12,12 +12,14 @@ import {
   ExclamationTriangleIcon,
   GlobeAltIcon,
   XMarkIcon,
+  SparklesIcon,
 } from "@heroicons/react/24/outline";
 import useAuthStore from "../../store/authStore";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
   { name: "Projects", href: "/projects", icon: FolderIcon },
+  { name: "CSRD Agent", href: "/agent", icon: SparklesIcon },
 ];
 
 const projectNavItems = [
