@@ -16,7 +16,7 @@ from database import Base, engine
 import models  # noqa: F401
 
 # Import routers
-from routes import auth, projects, emissions, materiality, iro, scenario, reports, data_collection, company
+from routes import auth, projects, emissions, materiality, iro, scenario, reports, data_collection, company, agent
 
 # ─── Logging ────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
@@ -74,6 +74,7 @@ app.include_router(materiality.router, prefix="/api")
 app.include_router(iro.router, prefix="/api")
 app.include_router(scenario.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
+app.include_router(agent.router, prefix="/api")
 
 # ─── Health Check ───────────────────────────────────────────────────────────
 @app.get("/api/health")
