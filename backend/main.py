@@ -86,6 +86,21 @@ def health_check():
     }
 
 
+@app.get("/api/debug/db")
+def debug_db():
+    """Database connectivity check — useful for diagnosing deployment issues."""
+    from sqlalchemy import text, inspect as sa_inspect
+    from database import engine as db_engine
+    try:
+        with db_engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        inspector = sa_inspect(db_engine)
+        tables = inspector.get_table_names()
+        return {"status": "connected", "tables": tables, "table_count": len(tables)}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+
 @app.get("/api/esrs-standards")
 def list_esrs_standards():
     """List all ESRS 2025 standards."""

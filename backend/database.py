@@ -4,9 +4,25 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 from config import settings
 
+
+def _ensure_ssl(url: str) -> str:
+    """
+    Auto-append sslmode=require for cloud PostgreSQL providers (Neon, Supabase,
+    Render, Railway, etc.). Local connections are left unchanged.
+    """
+    if not url:
+        return url
+    if "localhost" in url or "127.0.0.1" in url:
+        return url
+    if "sslmode" in url:
+        return url  # already configured
+    sep = "&" if "?" in url else "?"
+    return url + sep + "sslmode=require"
+
+
 # NullPool is required for serverless (Vercel/Neon) — no persistent connections
 engine = create_engine(
-    settings.DATABASE_URL,
+    _ensure_ssl(settings.DATABASE_URL),
     poolclass=NullPool,
 )
 

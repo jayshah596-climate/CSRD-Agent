@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 import logging
 
-from services.csrd_agent_service import stream_csrd_analysis
+from services.csrd_agent_service import stream_csrd_analysis, run_csrd_analysis_sync
 
 logger = logging.getLogger("csrd-agent")
 
@@ -84,3 +84,56 @@ async def analyze(request: AgentRequest):
             "Connection": "keep-alive",
         },
     )
+
+
+# ─── Synchronous endpoint (Vercel-compatible) ─────────────────────────────────
+
+@router.post(
+    "/analyze-sync",
+    summary="Run CSRD end-to-end analysis (synchronous JSON response)",
+    response_description="Complete 8-step CSRD analysis returned as JSON once finished",
+)
+async def analyze_sync(request: AgentRequest):
+    """
+    Vercel-compatible synchronous endpoint.
+
+    Runs the full 8-step CSRD analysis via a single blocking Claude call
+    (max_tokens=4000, ~25-35 seconds) and returns all sections as JSON.
+    Use this instead of /analyze on serverless deployments (Vercel, Lambda).
+
+    Response shape:
+      {
+        "sections": {
+          "wave_eligibility": "...",
+          "esrs_modules": "...",
+          "data_processing": "...",
+          "double_materiality": "...",
+          "iro_analysis": "...",
+          "climate_scenario": "...",
+          "esg_report": "...",
+          "xbrl_specifications": "..."
+        },
+        "full_text": "...",
+        "usage": { "input_tokens": N, "output_tokens": N }
+      }
+    """
+    import asyncio
+    from fastapi import HTTPException
+
+    from config import settings
+    api_key: Optional[str] = getattr(settings, "ANTHROPIC_API_KEY", None)
+
+    if not api_key:
+        raise HTTPException(status_code=503, detail="ANTHROPIC_API_KEY not configured.")
+
+    try:
+        result = await asyncio.to_thread(
+            run_csrd_analysis_sync,
+            request.company_data,
+            request.reporting_requirements,
+            request.raw_data or "",
+            api_key,
+        )
+        return result
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
