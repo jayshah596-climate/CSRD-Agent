@@ -303,6 +303,65 @@ async def stream_csrd_analysis(
         yield f"data: [ERROR] Analysis failed: {str(e)}\n\n"
 
 
+# ─── Synchronous analysis (Vercel-compatible) ────────────────────────────────
+
+def run_csrd_analysis_sync(
+    company_data: Dict[str, Any],
+    reporting_requirements: List[str],
+    raw_data: str,
+    api_key: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Synchronous (non-streaming) CSRD analysis — required for Vercel serverless.
+
+    Vercel's Python runtime buffers StreamingResponse entirely and does not
+    flush SSE chunks mid-execution. This synchronous version calls Claude once,
+    waits for the complete response, then parses and returns all sections as JSON.
+
+    max_tokens=4000 keeps response time within the 60-second Vercel limit.
+    """
+    try:
+        import anthropic
+    except ImportError:
+        raise RuntimeError("Anthropic package not installed. Run: pip install anthropic")
+
+    if not api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY not configured.")
+
+    base_prompt = build_csrd_prompt(company_data, reporting_requirements, raw_data)
+    # Append conciseness constraint so the response fits within max_tokens
+    prompt = (
+        base_prompt
+        + "\n\nIMPORTANT: Be concise. Each XML section must be 400-600 words maximum. "
+        "Prioritise actionable findings and key data points over narrative padding."
+    )
+
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=4000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        full_text = message.content[0].text
+        sections = parse_agent_sections(full_text)
+        return {
+            "sections": sections,
+            "full_text": full_text,
+            "usage": {
+                "input_tokens": message.usage.input_tokens,
+                "output_tokens": message.usage.output_tokens,
+            },
+        }
+    except anthropic.AuthenticationError:
+        raise RuntimeError("Invalid Anthropic API key. Please check your ANTHROPIC_API_KEY.")
+    except anthropic.RateLimitError:
+        raise RuntimeError("Rate limit exceeded. Please try again in a moment.")
+    except Exception as e:
+        logger.error(f"CSRD sync analysis error: {e}", exc_info=True)
+        raise RuntimeError(f"Analysis failed: {str(e)}")
+
+
 # ─── Section parser (post-stream) ─────────────────────────────────────────────
 
 def parse_agent_sections(full_text: str) -> Dict[str, str]:

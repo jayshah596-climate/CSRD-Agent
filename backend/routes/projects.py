@@ -3,12 +3,15 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
+import logging
 
 from database import get_db
 from models.project import Project, ProjectStatus
 from models.company import Company
 from routes.auth import get_current_user
 from models.user import User
+
+logger = logging.getLogger("csrd-agent")
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -47,6 +50,20 @@ def create_project(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    try:
+        return _do_create_project(payload, current_user, db)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Project creation failed: {e}", exc_info=True)
+        db.rollback()
+        raise HTTPException(
+            status_code=503,
+            detail=f"Database error: {str(e)}. Check /api/debug/db for connectivity status.",
+        )
+
+
+def _do_create_project(payload: ProjectCreate, current_user: User, db: Session):
     if not current_user.company_id:
         # Auto-create a company for the user
         company = Company(
